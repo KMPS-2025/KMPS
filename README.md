@@ -1,1 +1,1 @@
-# KMPS: A Reinforcement Learning Scheduler for Kubernetes Edge-Cloud Systems 
+# A simulator demonstration for illustrating the KMPS scheduling process 
