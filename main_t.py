@@ -295,8 +295,8 @@ def execution(RUN_TIMES, BREAK_POINT, TRAIN_TIMES, CHO_CYCLE):
     double_buffer = DoubleBuffer(memory_size=1e+6, batch_size=int(3200), max_episodes=3)
     saver = tf.compat.v1.train.Saver()
 
-    all_task1 = get_all_task('./data/Task_1_test.csv')
-    all_task2 = get_all_task('./data/Task_2_test.csv')
+    all_task1 = get_all_task('./data/Task_1.csv')
+    all_task2 = get_all_task('./data/Task_2.csv')
 
     config = tf.ConfigProto(device_count={'GPU': worker_num_gpu},
                             gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=worker_gpu_fraction))
@@ -644,24 +644,25 @@ def execution(RUN_TIMES, BREAK_POINT, TRAIN_TIMES, CHO_CYCLE):
 
             if slot != 0:
                 r_grid = to_grid_rewards(immediate_reward)
-                targets_batch,qvalue_next = q_estimator.compute_targets(action_mat_prev, s_grid, r_grid, gamma)
-                # Calculate advantage function for training policy network
-                advantage,qvalue_next_adv = q_estimator.compute_advantage(curr_state_value_prev, next_state_ids_prev,
-                                                          s_grid, r_grid, gamma)
-                if curr_task[0][0] != -1 and curr_task[1][0] != -1:
-                    policy_replay = double_buffer.get_write_buffer()
+                if len(s_grid) > 0 and len(r_grid) > 0:
+                    targets_batch,qvalue_next = q_estimator.compute_targets( s_grid, r_grid, gamma)
+                    # Calculate advantage function for training policy network
+                    advantage,qvalue_next_adv = q_estimator.compute_advantage(curr_state_value_prev, next_state_ids_prev,
+                                                              s_grid, r_grid, gamma)
+                    if curr_task[0][0] != -1 and curr_task[1][0] != -1:
+                        policy_replay = double_buffer.get_write_buffer()
 
-                    policy_replay.add(policy_state_prev, action_choosen_mat_prev, np.array(advantage).reshape(-1, 1), curr_neighbor_mask_prev,
-                                      old_probs_list,np.array(act).reshape(-1, 1),state_mat_prev, action_mat_prev, targets_batch, s_grid)
+                        policy_replay.add(policy_state_prev, action_choosen_mat_prev, np.array(advantage).reshape(-1, 1), curr_neighbor_mask_prev,
+                                          old_probs_list,np.array(act).reshape(-1, 1),state_mat_prev, action_mat_prev, targets_batch, s_grid)
 
-                    experience_counter += 1
-                    if experience_counter >= 3300:
-                        policy_replay.add_episode_boundary()
-                        double_buffer.swap_buffers()
-                        experience_counter = 0
-                        with train_condition:
-                            train_counter += 1
-                            train_condition.notify()  # Wake up training thread
+                        experience_counter += 1
+                        if experience_counter >= 3300:
+                            policy_replay.add_episode_boundary()
+                            double_buffer.swap_buffers()
+                            experience_counter = 0
+                            with train_condition:
+                                train_counter += 1
+                                train_condition.notify()  # Wake up training thread
 
             state_mat_prev = s_grid
             action_mat_prev = valid_action_prob_mat
